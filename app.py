@@ -1,4 +1,3 @@
-from unicodedata import category
 from flask import Flask, render_template
 import pandas as pd
 import numpy as np
@@ -6,11 +5,11 @@ import matplotlib.pyplot as plt
 from io import BytesIO
 import base64
 
-app = Flask
+app = Flask(__name__)
 
 playstore = pd.read_csv("data/googleplaystore.csv")
 
-playstore.drop_duplicates(subset = 'App', keep = 'first') 
+palystore = playstore.drop_duplicates(subset = 'App', keep = 'first') 
 
 # bagian ini untuk menghapus row 10472 karena nilai data tersebut tidak tersimpan pada kolom yang benar
 playstore.drop([10472], inplace=True)
@@ -35,7 +34,6 @@ playstore['Price'] = playstore['Price'].astype('float')
 playstore['Reviews'] = playstore['Reviews'].astype('int64')
 playstore['Size'] = playstore['Size'].astype('int64')
 playstore['Installs'] = playstore['Installs'].astype('int64')
-___________________________________________________________________________________
 
 @app.route("/")
 # This fuction for rendering the table
@@ -44,21 +42,20 @@ def index():
 
     # Statistik
     top_category = pd.crosstab(index = df2['Category'],
-           columns = "Jumlah").sort_values(by='Jumlah', ascending=False)
-    top_category.reset_index(inplace=True)
+           columns = "Jumlah").sort_values(by='Jumlah', ascending=False).reset_index()
     # Dictionary stats digunakan untuk menyimpan beberapa data yang digunakan untuk menampilkan nilai di value box dan tabel
     stats = {
-        'most_categories' : top_category.iloc[0,1],
-        'total' : top_category.iloc[0,2],
-        'rev_table' : df2.groupby(['Category','App']).sum()[['Reviews','Rating']].sort_values(by='Reviews', ascending=False).head(10).reset_index().to_html(classes=['table thead-light table-striped table-bordered table-hover table-sm'])
+        'most_categories' : top_category.iloc[0,0],
+        'total' : top_category.iloc[0,1],
+        'rev_table' : df2.groupby(['Category','App']).sum()[['Rating','Reviews']].sort_values(by='Reviews', ascending=False).head(10).reset_index().to_html(classes=['table thead-light table-striped table-bordered table-hover table-sm'])
     }
 
     ## Bar Plot
     cat_order = df2.groupby('Category').agg({
     'Category' : 'count'
-        }).rename({'Category':'Total'}, axis=1).sort_values('Total', ascending=False).head().reset_index()
-    X = ['Category']
-    Y = ['Total']
+        }).rename({'Category':'Total'}, axis=1).sort_values('Total', ascending=False).reset_index().head()
+    X = cat_order['Category']
+    Y = cat_order['Total']
     my_colors = 'rgbkymc'
     # bagian ini digunakan untuk membuat kanvas/figure
     fig = plt.figure(figsize=(8,3),dpi=300)
@@ -111,9 +108,9 @@ def index():
     result3 = str(figdata_png)[2:-1]
 
     ## Buatlah sebuah plot yang menampilkan insight di dalam data 
-    Rate_Type = pd.crosstab(index=df2['Rating'],
-            columns=df2['Type']).sort_values(by='Free', ascending=False).head(10)
-    Rate_Type.head(10).sort_values(by='Rating').plot(kind='bar')
+    Rate_Type = pd.crosstab(index=df2['Category'],
+            columns=df2['Type']).sort_values(by='Free', ascending= False)
+    Rate_Type.head(9).sort_values(by='Category', ascending= False).plot(kind='barh')
     plt.savefig('Rate_Type.png',bbox_inches="tight")
     figfile = BytesIO()
     plt.savefig(figfile, format='png')
